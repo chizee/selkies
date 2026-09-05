@@ -555,6 +555,7 @@ async def _bind_listen_sockets(addr: str, port: int) -> List[socket.socket]:
     """
     loop = asyncio.get_running_loop()
     candidates: List[Tuple[int, int, int, Any]] = []
+    seen: set = set()
     for host in (h.strip() for h in addr.split(",")):
         if not host:
             continue
@@ -564,7 +565,9 @@ async def _bind_listen_sockets(addr: str, port: int) -> List[socket.socket]:
         except socket.gaierror as exc:
             raise OSError(f"cannot resolve listen address '{host}': {exc}") from exc
         for family, stype, proto, _, sockaddr in infos:
-            if all((family, sockaddr) != (f, sa) for f, _, _, sa in candidates):
+            # The list keeps resolution order; the set is what an address is tested against
+            if (family, sockaddr) not in seen:
+                seen.add((family, sockaddr))
                 candidates.append((family, stype, proto, sockaddr))
 
     unavailable = (errno.EADDRNOTAVAIL, errno.EAFNOSUPPORT)
